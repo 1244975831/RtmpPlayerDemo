@@ -16,7 +16,7 @@ import java.nio.FloatBuffer;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
-public class RoundCameraGLSurfaceView extends GLSurfaceView {
+public class RtmpGLSurfaceView extends GLSurfaceView {
     private static final String TAG = "CameraGLSurfaceView";
     // 源视频帧宽/高
     private int frameWidth, frameHeight;
@@ -46,11 +46,11 @@ public class RoundCameraGLSurfaceView extends GLSurfaceView {
     private boolean rendererReady = false;
     float[] coordVertice = null;
 
-    public RoundCameraGLSurfaceView(Context context) {
+    public RtmpGLSurfaceView(Context context) {
         this(context, null);
     }
 
-    public RoundCameraGLSurfaceView(Context context, AttributeSet attrs) {
+    public RtmpGLSurfaceView(Context context, AttributeSet attrs) {
         super(context, attrs);
         setEGLContextClientVersion(2);
         //设置Renderer到GLSurfaceView
@@ -351,21 +351,6 @@ public class RoundCameraGLSurfaceView extends GLSurfaceView {
         }
     }
 
-    /**
-     * 传入YV12数据刷新帧
-     *
-     * @param data YV12数据
-     */
-    public void refreshFrameBGR(byte[] data) {
-        if (rendererReady) {
-            yBuf.clear();
-            uBuf.clear();
-            vBuf.clear();
-            putBGR(data, frameWidth, frameHeight);
-            dataInput = true;
-            requestRender();
-        }
-    }
 
     /**
      * 将NV21数据的Y、U、V分量取出
@@ -417,18 +402,6 @@ public class RoundCameraGLSurfaceView extends GLSurfaceView {
         while (index < frameSize) {
             vArray[k] = src[index++];
             uArray[k++] = src[index++];
-        }
-        yBuf.put(yArray).position(0);
-        uBuf.put(uArray).position(0);
-        vBuf.put(vArray).position(0);
-    }
-
-    private void putBGR(byte[] src, int width, int height) {
-
-        for (int i = 0, j = 0; j < src.length; i++, j += 3) {
-            yArray[i] = src[j];
-            uArray[i] = src[j + 1];
-            vArray[i] = src[j + 2];
         }
         yBuf.put(yArray).position(0);
         uBuf.put(uArray).position(0);

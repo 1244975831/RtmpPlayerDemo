@@ -6,17 +6,6 @@
 #define LOGE(FORMAT, ...) __android_log_print(ANDROID_LOG_ERROR, "player", FORMAT, ##__VA_ARGS__);
 #define LOGI(FORMAT, ...) __android_log_print(ANDROID_LOG_INFO, "player", FORMAT, ##__VA_ARGS__);
 
-void sleepUs(int us) {
-    if (us <= 0)
-        return;
-    struct timeval start;
-    gettimeofday(&start, NULL);
-    struct timeval end;
-    do {
-        gettimeofday(&end, NULL);
-    } while ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec) < us);
-}
-
 extern "C" {
 #include "libavformat/avformat.h"
 #include "libavcodec/avcodec.h"
@@ -41,10 +30,15 @@ Java_com_example_rtmpplaydemo_RtmpPlayer_nativePrepare(JNIEnv *env, jobject, jst
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(55, 28, 1)
 #define av_frame_alloc  avcodec_alloc_frame
 #endif
+    if (frameCallback == NULL) {
+        return -1;
+    }
     pAvFrame = av_frame_alloc();
     pFrameNv21 = av_frame_alloc();
+    const char* temporary = env->GetStringUTFChars(url,NULL);
     char input_str[500] = {0};
-    sprintf(input_str, "%s", env->GetStringUTFChars(url, NULL));
+    strcpy(input_str,temporary);
+    env->ReleaseStringUTFChars(url,temporary);
 
     //初始化
     avcodec_register_all();
@@ -56,7 +50,7 @@ Java_com_example_rtmpplaydemo_RtmpPlayer_nativePrepare(JNIEnv *env, jobject, jst
     int openInputCode = avformat_open_input(&pFormatCtx, input_str, NULL, NULL);
     LOGI("openInputCode = %d", openInputCode);
     if (openInputCode < 0)
-        return 1;
+        return -1;
     avformat_find_stream_info(pFormatCtx, NULL);
 
     int videoIndex = -1;
@@ -66,6 +60,9 @@ Java_com_example_rtmpplaydemo_RtmpPlayer_nativePrepare(JNIEnv *env, jobject, jst
             videoIndex = i;                                     //这里获取到的videoindex的结果为1.
             break;
         }
+    }
+    if (videoIndex == -1) {
+        return -1;
     }
     pCodecCtx = pFormatCtx->streams[videoIndex]->codec;
     AVCodec *pCodec = avcodec_find_decoder(pCodecCtx->codec_id);
@@ -90,6 +87,7 @@ Java_com_example_rtmpplaydemo_RtmpPlayer_nativePrepare(JNIEnv *env, jobject, jst
             NULL,
             NULL,
             NULL);
+    pPacket = (AVPacket *) av_malloc(sizeof(AVPacket));
     jclass clazz = env->GetObjectClass(frameCallback);
     jmethodID onPreparedId = env->GetMethodID(clazz, "onPrepared", "(II)V");
     env->CallVoidMethod(frameCallback, onPreparedId, width, height);
@@ -98,14 +96,21 @@ Java_com_example_rtmpplaydemo_RtmpPlayer_nativePrepare(JNIEnv *env, jobject, jst
 }
 
 extern "C"
-JNIEXPORT int JNICALL
+JNIEXPORT void JNICALL
 Java_com_example_rtmpplaydemo_RtmpPlayer_nativeStop(JNIEnv *env, jobject) {
     stop = true;
+    if (frameCallback == NULL) {
+        return;
+    }
     jclass clazz = env->GetObjectClass(frameCallback);
     jmethodID onPlayFinishedId = env->GetMethodID(clazz, "onPlayFinished", "()V");
     env->CallVoidMethod(frameCallback, onPlayFinishedId);
     env->DeleteLocalRef(clazz);
-    return 1;
+    sws_freeContext(pImgConvertCtx);
+    av_free(pPacket);
+    av_free(pFrameNv21);
+    avcodec_close(pCodecCtx);
+    avformat_close_input(&pFormatCtx);
 }
 
 extern "C"
@@ -120,10 +125,12 @@ Java_com_example_rtmpplaydemo_RtmpPlayer_nativeSetCallback(JNIEnv *env, jobject,
 }
 
 extern "C"
-JNIEXPORT jint JNICALL
+JNIEXPORT void JNICALL
 Java_com_example_rtmpplaydemo_RtmpPlayer_nativeStart(JNIEnv *env, jobject) {
     stop = false;
-    pPacket = (AVPacket *) av_malloc(sizeof(AVPacket));
+    if (frameCallback == NULL) {
+        return;
+    }
     // 读取数据包
     int count = 0;
     while (!stop) {
@@ -163,10 +170,4 @@ Java_com_example_rtmpplaydemo_RtmpPlayer_nativeStart(JNIEnv *env, jobject) {
         }
         av_packet_unref(pPacket);
     }
-    sws_freeContext(pImgConvertCtx);
-    av_free(pPacket);
-    av_free(pFrameNv21);
-    avcodec_close(pCodecCtx);
-    avformat_close_input(&pFormatCtx);
-    return 1;
 }

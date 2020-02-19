@@ -9,7 +9,11 @@ public class RtmpPlayer {
 
     public static RtmpPlayer getInstance() {
         if (mInstance == null) {
-            mInstance = new RtmpPlayer();
+            synchronized (RtmpPlayer.class) {
+                if (mInstance == null) {
+                    mInstance = new RtmpPlayer();
+                }
+            }
         }
         return mInstance;
     }
@@ -19,33 +23,17 @@ public class RtmpPlayer {
         return nativePrepare(url);
     }
 
-    public int start() {
-        // 检查操作等
-
-        return nativeStart();
-    }
-
-    //
-    public int setCallback(PlayCallback playCallback) {
-        // 检查操作等
-        return nativeSetCallback(playCallback);
-    }
-
-    public int stop() {
-        // 检查操作等
-        return nativeStop();
-    }
 
     static {
-        System.loadLibrary("native-lib");
+        System.loadLibrary("rtmpplayer-lib");
     }
 
     private native int nativePrepare(String url);
 
-    private native int nativeStart();
+    public native void nativeStart();
 
-    private native int nativeSetCallback(PlayCallback playCallback);
+    public native void nativeSetCallback(PlayCallback playCallback);
 
-    private native int nativeStop();
+    public native void nativeStop();
 
 }

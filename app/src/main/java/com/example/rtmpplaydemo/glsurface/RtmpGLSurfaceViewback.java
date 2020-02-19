@@ -16,7 +16,7 @@ import java.nio.FloatBuffer;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
-public class RoundCameraGLSurfaceViewback extends GLSurfaceView {
+public class RtmpGLSurfaceViewback extends GLSurfaceView {
     private static final String TAG = "CameraGLSurfaceView";
     // 源视频帧宽/高
     private int frameWidth, frameHeight;
@@ -46,11 +46,11 @@ public class RoundCameraGLSurfaceViewback extends GLSurfaceView {
     private boolean rendererReady = false;
     float[] coordVertice = null;
 
-    public RoundCameraGLSurfaceViewback(Context context) {
+    public RtmpGLSurfaceViewback(Context context) {
         this(context, null);
     }
 
-    public RoundCameraGLSurfaceViewback(Context context, AttributeSet attrs) {
+    public RtmpGLSurfaceViewback(Context context, AttributeSet attrs) {
         super(context, attrs);
         setEGLContextClientVersion(2);
         //设置Renderer到GLSurfaceView
