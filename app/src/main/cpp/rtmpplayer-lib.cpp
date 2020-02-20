@@ -33,6 +33,7 @@ Java_com_example_rtmpplaydemo_RtmpPlayer_nativePrepare(JNIEnv *env, jobject, jst
     if (frameCallback == NULL) {
         return -1;
     }
+    //申请空间
     pAvFrame = av_frame_alloc();
     pFrameNv21 = av_frame_alloc();
     const char* temporary = env->GetStringUTFChars(url,NULL);
@@ -40,9 +41,9 @@ Java_com_example_rtmpplaydemo_RtmpPlayer_nativePrepare(JNIEnv *env, jobject, jst
     strcpy(input_str,temporary);
     env->ReleaseStringUTFChars(url,temporary);
 
-    //初始化
+    //注册库中所有可用的文件格式和编码器
     avcodec_register_all();
-    av_register_all();         //注册库中所有可用的文件格式和编码器
+    av_register_all();
     avformat_network_init();
     avdevice_register_all();
 
@@ -54,10 +55,12 @@ Java_com_example_rtmpplaydemo_RtmpPlayer_nativePrepare(JNIEnv *env, jobject, jst
     avformat_find_stream_info(pFormatCtx, NULL);
 
     int videoIndex = -1;
-    for (unsigned int i = 0; i < pFormatCtx->nb_streams; i++) //遍历各个流，找到第一个视频流,并记录该流的编码信息
+    //遍历各个流，找到第一个视频流,并记录该流的编码信息
+    for (unsigned int i = 0; i < pFormatCtx->nb_streams; i++)
     {
         if (pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
-            videoIndex = i;                                     //这里获取到的videoindex的结果为1.
+            //这里获取到的videoindex的结果为1.
+            videoIndex = i;
             break;
         }
     }
@@ -88,6 +91,7 @@ Java_com_example_rtmpplaydemo_RtmpPlayer_nativePrepare(JNIEnv *env, jobject, jst
             NULL,
             NULL);
     pPacket = (AVPacket *) av_malloc(sizeof(AVPacket));
+    //onPrepared 回调
     jclass clazz = env->GetObjectClass(frameCallback);
     jmethodID onPreparedId = env->GetMethodID(clazz, "onPrepared", "(II)V");
     env->CallVoidMethod(frameCallback, onPreparedId, width, height);
@@ -98,14 +102,17 @@ Java_com_example_rtmpplaydemo_RtmpPlayer_nativePrepare(JNIEnv *env, jobject, jst
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_example_rtmpplaydemo_RtmpPlayer_nativeStop(JNIEnv *env, jobject) {
+    //停止播放
     stop = true;
     if (frameCallback == NULL) {
         return;
     }
     jclass clazz = env->GetObjectClass(frameCallback);
     jmethodID onPlayFinishedId = env->GetMethodID(clazz, "onPlayFinished", "()V");
+    //发送onPlayFinished 回调
     env->CallVoidMethod(frameCallback, onPlayFinishedId);
     env->DeleteLocalRef(clazz);
+    //释放资源
     sws_freeContext(pImgConvertCtx);
     av_free(pPacket);
     av_free(pFrameNv21);
@@ -117,6 +124,7 @@ extern "C"
 JNIEXPORT void JNICALL
 Java_com_example_rtmpplaydemo_RtmpPlayer_nativeSetCallback(JNIEnv *env, jobject,
                                                            jobject callback) {
+    //设置回调
     if (frameCallback != NULL) {
         env->DeleteGlobalRef(frameCallback);
         frameCallback = NULL;
@@ -127,6 +135,7 @@ Java_com_example_rtmpplaydemo_RtmpPlayer_nativeSetCallback(JNIEnv *env, jobject,
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_example_rtmpplaydemo_RtmpPlayer_nativeStart(JNIEnv *env, jobject) {
+    //开始播放
     stop = false;
     if (frameCallback == NULL) {
         return;
@@ -137,7 +146,6 @@ Java_com_example_rtmpplaydemo_RtmpPlayer_nativeStart(JNIEnv *env, jobject) {
         if (av_read_frame(pFormatCtx, pPacket) >= 0) {
             //解码
             int gotPicCount = 0;
-
             int decode_video2_size = avcodec_decode_video2(pCodecCtx, pAvFrame, &gotPicCount,
                                                            pPacket);
             LOGI("decode_video2_size = %d , gotPicCount = %d", decode_video2_size, gotPicCount);
@@ -153,13 +161,14 @@ Java_com_example_rtmpplaydemo_RtmpPlayer_nativeStart(JNIEnv *env, jobject) {
                         pCodecCtx->height,
                         pFrameNv21->data,
                         pFrameNv21->linesize);
+                //获取数据大小 宽高等数据
                 int dataSize = pCodecCtx->height * (pAvFrame->linesize[0] + pAvFrame->linesize[1]);
                 LOGI("pAvFrame->linesize  %d  %d %d %d", pAvFrame->linesize[0],
                      pAvFrame->linesize[1], pCodecCtx->height, dataSize);
                 jbyteArray data = env->NewByteArray(dataSize);
                 env->SetByteArrayRegion(data, 0, dataSize,
                                         reinterpret_cast<const jbyte *>(v_out_buffer));
-                // send data to java
+                // onFrameAvailable 回调
                 jclass clazz = env->GetObjectClass(frameCallback);
                 jmethodID onFrameAvailableId = env->GetMethodID(clazz, "onFrameAvailable", "([B)V");
                 env->CallVoidMethod(frameCallback, onFrameAvailableId, data);

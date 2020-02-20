@@ -33,12 +33,13 @@ public class RtmpGLSurfaceView extends GLSurfaceView {
     private int[] uTexture = new int[1];
     private int[] vTexture = new int[1];
 
+    //YUV分量
     private byte[] yArray;
     private byte[] uArray;
     private byte[] vArray;
 
     private static final int FLOAT_SIZE_BYTES = 4;
-
+    //片段着色器的效果
     private String fragmentShaderCode = GLUtil.FRAG_SHADER_NORMAL;
 
     private FloatBuffer squareVertices = null;

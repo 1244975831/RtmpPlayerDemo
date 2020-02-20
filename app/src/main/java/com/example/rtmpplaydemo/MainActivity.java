@@ -66,7 +66,10 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
             ActivityCompat.requestPermissions(this, NEEDED_PERMISSIONS, ACTION_REQUEST_PERMISSIONS);
             return;
         }
-        FaceEngine.active(this, Constants.APP_ID, Constants.SDK_KEY);
+        int code = FaceEngine.active(this, Constants.APP_ID, Constants.SDK_KEY);
+        if (code == ErrorInfo.MOK || code == ErrorInfo.MERR_ASF_ALREADY_ACTIVATED) {
+            Toast.makeText(this, "Error Code :" + code, Toast.LENGTH_LONG).show();
+        }
         faceEngineInit();
         surfaceView = findViewById(R.id.sv_video);
         faceRectView = findViewById(R.id.face_rect_view);
@@ -76,16 +79,17 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         surfaceView.getHolder().addCallback(this);
         //GLSurfaceView 初始化
         surfaceView.init(false, 0, 1024, 576);
-
         thread = new Thread() {
             @Override
             public void run() {
                 super.run();
 //                rtmp://58.200.131.2:1935/livetv/hunantv
 //                rtmp://202.69.69.180:443/webcast/bshdlive-pc
+                //为RtmpPlayer 设置回调
                 RtmpPlayer.getInstance().nativeSetCallback(new PlayCallback() {
                     @Override
                     public void onPrepared(int width, int height) {
+                        //获得数据流的宽高
                         frameWidth = width;
                         frameHeight = height;
                         /**
@@ -108,16 +112,19 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 
                     @Override
                     public void onFrameAvailable(byte[] data) {
+                        //获得裸数据，裸数据的格式为NV21
                         Log.i(TAG, "onFrameAvailable: " + Arrays.hashCode(data));
                         surfaceView.refreshFrameNV21(data);
                         List<DrawInfo> drawInfoList = new ArrayList<>();
                         List<FaceInfo> faceInfos = new ArrayList<>();
+                        //人脸识别
                         int code = faceEngine.detectFaces(data, frameWidth, frameHeight, FaceEngine.CP_PAF_NV21, faceInfos);
                         if (code != ErrorInfo.MOK) {
+                            //引擎调用有问题则打log出来
                             Log.i(TAG, "onFrameAvailable:  detect Error");
                             return;
                         }
-                        //得到人脸数据后
+                        //得到人脸数据后 将需要绘制的信息记录在drawInfoList内
                         for (int i = 0; i < faceInfos.size(); i++) {
                             drawInfoList.add(new DrawInfo(drawHelper.adjustRect(faceInfos.get(i).getRect()),
                                     GenderInfo.UNKNOWN, AgeInfo.UNKNOWN_AGE, LivenessInfo.UNKNOWN, Color.YELLOW,
@@ -129,11 +136,13 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 
                     @Override
                     public void onPlayFinished() {
-
+                        //播放结束的回调
                     }
                 });
+                //数据准备
                 int code = RtmpPlayer.getInstance().prepare("rtmp://58.200.131.2:1935/livetv/hunantv");
                 if (code == -1) {
+                    //code为-1则证明rtmp的prepare有问题
                     Toast.makeText(MainActivity.this, "prepare Error", Toast.LENGTH_LONG).show();
                 }
             }
