@@ -67,7 +67,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
             return;
         }
         int code = FaceEngine.active(this, Constants.APP_ID, Constants.SDK_KEY);
-        if (code == ErrorInfo.MOK || code == ErrorInfo.MERR_ASF_ALREADY_ACTIVATED) {
+        if (code != ErrorInfo.MOK && code != ErrorInfo.MERR_ASF_ALREADY_ACTIVATED) {
             Toast.makeText(this, "Error Code :" + code, Toast.LENGTH_LONG).show();
         }
         faceEngineInit();
