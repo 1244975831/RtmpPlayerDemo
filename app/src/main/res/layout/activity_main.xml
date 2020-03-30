@@ -6,10 +6,10 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <com.example.rtmpplaydemo.glsurface.RtmpGLSurfaceView
-        android:id="@+id/sv_video"
+    <FrameLayout
+        android:id="@+id/fl_main_layout"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"/>
 
     <com.example.rtmpplaydemo.draw.FaceRectView
         android:id="@+id/face_rect_view"

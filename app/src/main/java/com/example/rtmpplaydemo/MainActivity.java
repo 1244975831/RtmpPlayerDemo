@@ -1,5 +1,6 @@
 package com.example.rtmpplaydemo;
 
+import androidx.annotation.UiThread;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -13,6 +14,7 @@ import android.view.SurfaceHolder;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import com.arcsoft.face.AgeInfo;
@@ -34,8 +36,7 @@ import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements SurfaceHolder.Callback {
-    private Thread thread;
+public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private static final int ACTION_REQUEST_PERMISSIONS = 0x001;
     private RtmpGLSurfaceView surfaceView;
@@ -44,6 +45,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
     private int frameHeight;
     private DrawHelper drawHelper;
     private FaceRectView faceRectView;
+    private FrameLayout mainLayout;
 
     private static final String[] NEEDED_PERMISSIONS = new String[]{
             Manifest.permission.READ_PHONE_STATE,
@@ -71,15 +73,11 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
             Toast.makeText(this, "Error Code :" + code, Toast.LENGTH_LONG).show();
         }
         faceEngineInit();
-        surfaceView = findViewById(R.id.sv_video);
         faceRectView = findViewById(R.id.face_rect_view);
+        mainLayout = findViewById(R.id.fl_main_layout);
         //设置着色器
-        surfaceView.setFragmentShaderCode(GLUtil.FRAG_SHADER_NORMAL);
-        //设置SurfaceHolder回调
-        surfaceView.getHolder().addCallback(this);
-        //GLSurfaceView 初始化
-        surfaceView.init(false, 0, 1024, 576);
-        thread = new Thread() {
+
+        Thread thread = new Thread() {
             @Override
             public void run() {
                 super.run();
@@ -92,6 +90,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
                         //获得数据流的宽高
                         frameWidth = width;
                         frameHeight = height;
+                        addSurfaceView(width, height);
                         /**
                          * DrawHelper初始化
                          *
@@ -131,7 +130,6 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
                                     String.valueOf(faceInfos.get(i).getFaceId())));
                         }
                         drawHelper.draw(faceRectView, drawInfoList);
-
                     }
 
                     @Override
@@ -142,14 +140,36 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
                 //数据准备
                 int code = RtmpPlayer.getInstance().prepare("rtmp://58.200.131.2:1935/livetv/hunantv");
                 if (code == -1) {
-                    //code为-1则证明rtmp的prepare有问题
+                    //code为-1则证明Rtmp的prepare有问题
                     Toast.makeText(MainActivity.this, "prepare Error", Toast.LENGTH_LONG).show();
                 }
             }
         };
+        thread.start();
     }
 
-    //引擎初始化
+    /**
+     * 初始化SurfaceView
+     *
+     * @param width  数据帧的宽
+     * @param height 数据帧的高
+     */
+    private void addSurfaceView(final int width, final int height) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                surfaceView = new RtmpGLSurfaceView(MainActivity.this);
+                surfaceView.setFragmentShaderCode(GLUtil.FRAG_SHADER_NORMAL);
+                //GLSurfaceView 初始化
+                surfaceView.init(false, 0, width, height);
+                mainLayout.addView(surfaceView);
+            }
+        });
+    }
+
+    /**
+     * 虹软引擎初始化
+     */
     private void faceEngineInit() {
         faceEngine = new FaceEngine();
         int code = faceEngine.init(this, DetectMode.ASF_DETECT_MODE_VIDEO, DetectFaceOrientPriority.ASF_OP_ALL_OUT,
@@ -159,22 +179,12 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         }
     }
 
-    @Override
-    public void surfaceCreated(SurfaceHolder holder) {
-
-    }
-
-    @Override
-    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-        Log.i(TAG, "surfaceCreated: start ");
-        thread.start();
-    }
-
-    @Override
-    public void surfaceDestroyed(SurfaceHolder holder) {
-
-    }
-
+    /**
+     * 权限检查、申请需要的权限
+     *
+     * @param neededPermissions 需要动态申请的权限
+     * @return 是否所有申请的权限都同意了
+     */
     protected boolean checkPermissions(String[] neededPermissions) {
         if (neededPermissions == null || neededPermissions.length == 0) {
             return true;
@@ -190,5 +200,8 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
     protected void onDestroy() {
         super.onDestroy();
         RtmpPlayer.getInstance().nativeStop();
+        if (faceEngine != null) {
+            faceEngine.unInit();
+        }
     }
 }

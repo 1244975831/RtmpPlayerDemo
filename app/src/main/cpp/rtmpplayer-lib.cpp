@@ -174,7 +174,6 @@ Java_com_example_rtmpplaydemo_RtmpPlayer_nativeStart(JNIEnv *env, jobject) {
                 env->CallVoidMethod(frameCallback, onFrameAvailableId, data);
                 env->DeleteLocalRef(clazz);
                 env->DeleteLocalRef(data);
-
             }
         }
         av_packet_unref(pPacket);
